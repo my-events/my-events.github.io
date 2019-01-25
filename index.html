@@ -1,0 +1,58 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<input id="search" placeholder="Loading..." disabled />
+<button id="submit" onclick="search()">Submit</button>
+<div id="result"></div>
+<style>
+body {
+	font-family: sans-serif;
+	margin: 0;
+}
+table {
+  font-size: 0.8rem;
+}
+#result div:nth-child(odd) table {
+	background: lavender;
+}
+</style>
+<script>
+var db = null;
+fetch("https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key=AIzaSyDJJdMZ2_0tk4iPEvjEWxc30BgQhJ4kwXw", {
+  body: "{\"email\":\"dummymitclub@gmail.com\",\"password\":\"Password@1234\",\"returnSecureToken\":true}",
+  headers: {
+    Accept: "*/*",
+    "Cache-Control": "no-cache",
+    "Content-Type": "application/json",
+    Pragma: "no-cache",
+    "X-Client-Version": "Chrome/JsCore/4.13.0/FirebaseCore-web"
+  },
+  method: "POST"
+})
+  .then(resp => resp.json())
+  .then(data => {
+    var token = data.idToken;
+    fetch(`https://staging-mit-event-booking.firebaseio.com/.json?auth=${token}`)
+      .then(resp => resp.json())
+      .then(data => {
+        db = data;
+        document.querySelector("#search").placeholder = "Search Club Name";
+        document.querySelector("#search").disabled = false;
+      });
+  });
+function search() {
+  if (db === null) return;
+  var name = document.querySelector("#search").value;
+  var events = db.events;
+  var data = Object.keys(events).reduce((acc, a) => (events[a].clubName === name ? [...acc, events[a]] : acc), []);
+  var result = data.reduce((acc, a) => acc + `
+      <div>
+      <table>
+      ${Object.keys(a).reduce((ac, k) => ac + `
+          <tr><td>${k}</td><td>${/^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$/.test(a[k]) ? `<a target="_blank" href="${a[k]}"><button>Open</button></a>` : a[k]}</td></tr>
+          `, '')}
+      </table>
+      </div>
+      `, '');
+  result = result.replace(/(\r\n|\n|\r)/gm, "");
+  document.querySelector("#result").innerHTML = result;
+}
+</script>
